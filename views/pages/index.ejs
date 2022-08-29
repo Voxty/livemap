@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <%- include('../partials/head'); %>
+    </head>
+    <header>
+        <%- include('../partials/header'); %>
+    </header>
+    <body class="container-fluid h-75">
+            <div class="jumbotron map" id="map">
+                
+            </div>
+        </main>
+        <footer>
+            <%- include('../partials/footer') %>
+        </footer>
+    </body>
+</html>
+
+<script>
+
+var bottomLeft = [0, 0];
+var topRight = [4096, 4096];
+var bounds = [bottomLeft, topRight];
+
+var popupid;
+
+var map = L.map('map', {
+    crs: L.CRS.Simple,
+    minZoom: -1.7,
+    maxBounds: bounds,
+    maxBoundsViscosity: 1.0
+});
+
+map.on('popupopen', function(e) { 
+    popupid = e.popup._source._myId;
+});
+
+
+var image = L.imageOverlay('https://map.sunsetrp.org/map.webp', bounds).addTo(map);
+
+map.fitBounds(bounds);
+
+</script>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+var socket = io();
+var marker = new Array();
+
+socket.on('result', function(result) {
+
+    markerDelAgain();
+
+    const json = JSON.parse(result);
+
+    function markerAdd() {
+        for(i=0;i<json.length;i++) {
+            var userid = json[i]['id'];
+            var username = json[i]['name'];
+            var vehicle = json[i]['vehicle'] || "Just walking";
+            var Xcoord = json[i]['coords'][0];
+            var Ycoord = json[i]['coords'][1];
+            var Zcoord = json[i]['coords'][2];
+            var heading = json[i]['heading'];
+            var callsign = json[i]['callsing'] || "No callsign set";
+            
+            if (vehicle != 0) {
+                // do stuff
+            }
+
+            let usercoords = getPictureCoords(Xcoord, Ycoord);
+
+            var LamMarker = new L.marker([usercoords[1], usercoords[0]]);
+            LamMarker._myId = userid;
+            LamMarker.addTo(map);
+            if (popupid == userid) {
+                LamMarker.bindPopup(`<p>Username: ${username} <br>
+                    ID: ${userid} <br>
+                    Heading: ${heading} <br>
+                    Vehicle: ${vehicle} <br>
+                    Callsign: ${callsign} <br>
+                    Altitude: ${Zcoord} <br>
+                    </p>`)
+                    .openPopup();
+                
+            } else {
+                LamMarker.bindPopup(`<p>Username: ${username} <br>
+                    ID: ${userid} <br>
+                    Heading: ${heading} <br>
+                    Vehicle: ${vehicle} <br>
+                    Callsign: ${callsign} <br>
+                    Altitude: ${Zcoord} <br>
+                    </p>`);
+            }
+            
+            marker.push(LamMarker);
+
+        }
+    }
+
+    function markerDelAgain() {
+    for(i=0;i<marker.length;i++) {
+        map.removeLayer(marker[i]);
+        }  
+    marker.length = 0;
+    }
+    
+    markerAdd();
+
+   
+    function getPictureCoords(x, y) {
+        const ZeroX = 1876;
+        const ZeroY = 1331;
+        const Scale = 3.037861303705727;
+        var x = x/Scale;
+        var y = y/Scale;
+        trueX = ZeroX + x;
+        trueY = ZeroY + y;
+        return [Math.floor(trueX), Math.floor(trueY)];
+    }
+
+});
+
+</script>
